@@ -1,10 +1,9 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import SearchBar from "@/components/SearchBar";
 import BookGrid from "@/components/BookGrid";
-import BookDetails from "@/components/BookDetails";
-import { AnimatePresence } from "framer-motion";
 
 interface Book {
   key: string;
@@ -29,13 +28,18 @@ const searchBooks = async (query: string): Promise<Book[]> => {
 
 const Index = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const navigate = useNavigate();
 
   const { data: books = [], isLoading } = useQuery({
     queryKey: ["books", searchQuery],
     queryFn: () => searchBooks(searchQuery),
     enabled: !!searchQuery,
   });
+
+  const handleBookSelect = (book: Book) => {
+    const bookId = book.key.split("/").pop();
+    navigate(`/book/${bookId}`);
+  };
 
   return (
     <div className="min-h-screen w-full px-4 py-8 space-y-8">
@@ -58,20 +62,11 @@ const Index = () => {
         ) : (
           <BookGrid
             books={books}
-            onBookSelect={setSelectedBook}
+            onBookSelect={handleBookSelect}
             isLoading={isLoading}
           />
         )}
       </div>
-
-      <AnimatePresence>
-        {selectedBook && (
-          <BookDetails
-            book={selectedBook}
-            onClose={() => setSelectedBook(null)}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 };
