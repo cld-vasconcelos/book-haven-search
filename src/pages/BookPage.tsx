@@ -5,9 +5,10 @@ import { motion } from "framer-motion";
 
 interface BookDetails {
   title: string;
-  authors: Array<{
-    key: string;
-    name: string;
+  authors?: Array<{
+    author: {
+      key: string;
+    };
   }>;
   covers?: number[];
   first_publish_date?: string;
@@ -26,7 +27,26 @@ const BookPage = () => {
     queryFn: async () => {
       const response = await fetch(`https://openlibrary.org/works/${bookId}.json`);
       if (!response.ok) throw new Error("Failed to fetch book details");
-      return response.json() as Promise<BookDetails>;
+      const data = await response.json();
+      
+      // Fetch author details for each author
+      if (data.authors) {
+        const authorPromises = data.authors.map(async (authorRef: { author: { key: string } }) => {
+          const authorKey = authorRef.author.key.split('/').pop();
+          const authorResponse = await fetch(`https://openlibrary.org${authorRef.author.key}.json`);
+          if (!authorResponse.ok) return null;
+          const authorData = await authorResponse.json();
+          return {
+            key: authorRef.author.key,
+            name: authorData.name
+          };
+        });
+        
+        const authors = await Promise.all(authorPromises);
+        data.authors = authors.filter(author => author !== null);
+      }
+      
+      return data as BookDetails;
     },
   });
 
@@ -53,7 +73,6 @@ const BookPage = () => {
 
   const getAuthorId = (authorKey: string) => {
     if (!authorKey) return '';
-    // Handle both "/authors/OL123W" and "OL123W" formats
     return authorKey.includes('/') ? authorKey.split('/').pop() : authorKey;
   };
 
