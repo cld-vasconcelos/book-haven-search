@@ -51,6 +51,12 @@ const BookPage = () => {
 
   if (!book) return null;
 
+  const getAuthorId = (authorKey: string) => {
+    if (!authorKey) return '';
+    // Handle both "/authors/OL123W" and "OL123W" formats
+    return authorKey.includes('/') ? authorKey.split('/').pop() : authorKey;
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -83,15 +89,18 @@ const BookPage = () => {
           <div className="space-y-6">
             <div>
               <h1 className="text-3xl font-bold mb-2">{book.title}</h1>
-              {book.authors?.map((author) => (
-                <Link
-                  key={author.key}
-                  to={`/author/${author.key.split('/').pop()}`}
-                  className="text-lg text-primary hover:underline"
-                >
-                  {author.name}
-                </Link>
-              ))}
+              <div className="space-y-1">
+                {book.authors?.map((author) => (
+                  <div key={author.key}>
+                    <Link
+                      to={`/author/${getAuthorId(author.key)}`}
+                      className="text-lg text-primary hover:underline"
+                    >
+                      {author.name}
+                    </Link>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {book.first_publish_date && (
