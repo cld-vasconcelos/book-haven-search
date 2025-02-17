@@ -1,14 +1,13 @@
-
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import { ArrowLeft } from "lucide-react";
 
 interface BookDetails {
   title: string;
-  authors?: Array<{
-    author: {
-      key: string;
-    };
+  authors: Array<{
+    key: string;
+    name: string;
   }>;
   covers?: number[];
   first_publish_date?: string;
@@ -83,12 +82,21 @@ const BookPage = () => {
       className="container mx-auto p-6"
     >
       <div className="max-w-4xl mx-auto">
-        <button
-          onClick={() => navigate(-1)}
-          className="mb-6 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          ← Back
-        </button>
+        <div className="flex gap-4 mb-6">
+          <button
+            onClick={() => navigate(-1)}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ← Back
+          </button>
+          <button
+            onClick={() => navigate('/')}
+            className="text-primary hover:text-primary/80 transition-colors flex items-center gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Search
+          </button>
+        </div>
 
         <div className="grid md:grid-cols-2 gap-8">
           <div className="aspect-[2/3] relative rounded-lg overflow-hidden">
