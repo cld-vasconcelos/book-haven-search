@@ -1,14 +1,19 @@
 
 import { Search } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
   isLoading?: boolean;
+  initialValue?: string;
 }
 
-const SearchBar = ({ onSearch, isLoading }: SearchBarProps) => {
-  const [query, setQuery] = useState("");
+const SearchBar = ({ onSearch, isLoading, initialValue = "" }: SearchBarProps) => {
+  const [query, setQuery] = useState(initialValue);
+
+  useEffect(() => {
+    setQuery(initialValue);
+  }, [initialValue]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

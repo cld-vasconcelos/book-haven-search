@@ -1,7 +1,7 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import SearchBar from "@/components/SearchBar";
 import BookGrid from "@/components/BookGrid";
 
@@ -27,7 +27,12 @@ const searchBooks = async (query: string): Promise<Book[]> => {
 };
 
 const Index = () => {
-  const [searchQuery, setSearchQuery] = useState("");
+  const location = useLocation();
+  const [searchQuery, setSearchQuery] = useState(() => {
+    // Initialize from URL search params
+    const params = new URLSearchParams(location.search);
+    return params.get("q") || "";
+  });
   const navigate = useNavigate();
 
   const { data: books = [], isLoading } = useQuery({
@@ -36,9 +41,24 @@ const Index = () => {
     enabled: !!searchQuery,
   });
 
+  // Update URL when search query changes
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (searchQuery) {
+      params.set("q", searchQuery);
+    } else {
+      params.delete("q");
+    }
+    navigate(`?${params.toString()}`, { replace: true });
+  }, [searchQuery, navigate, location.search]);
+
   const handleBookSelect = (book: Book) => {
     const bookId = book.key.split("/").pop();
     navigate(`/book/${bookId}`);
+  };
+
+  const handleSearch = (query: string) => {
+    setSearchQuery(query);
   };
 
   return (
@@ -50,7 +70,7 @@ const Index = () => {
         </p>
       </div>
 
-      <SearchBar onSearch={setSearchQuery} isLoading={isLoading} />
+      <SearchBar onSearch={handleSearch} isLoading={isLoading} initialValue={searchQuery} />
 
       <div className="container mx-auto">
         {searchQuery && !isLoading && books.length === 0 ? (
