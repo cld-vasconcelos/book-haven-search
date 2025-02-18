@@ -40,6 +40,9 @@ const ReviewForm = ({ bookId, onReviewSubmitted }: ReviewFormProps) => {
         title: "Review submitted",
         description: "Thank you for your review!",
       });
+      // Clear form after successful submission
+      setRating(0);
+      setText("");
       onReviewSubmitted();
     } catch (error) {
       toast({
