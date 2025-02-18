@@ -1,14 +1,16 @@
 
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
+import ReviewForm from "@/components/ReviewForm";
+import ReviewList from "@/components/ReviewList";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BookDetails {
   title: string;
   authors?: Array<{
-    author: {
-      key: string;
-    };
+    key: string;
+    name: string;
   }>;
   covers?: number[];
   first_publish_date?: string;
@@ -18,11 +20,19 @@ interface BookDetails {
   subjects?: string[];
 }
 
+interface Review {
+  id: string;
+  rating: number;
+  text: string | null;
+  created_at: string;
+}
+
 const BookPage = () => {
   const { bookId } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-  const { data: book, isLoading } = useQuery({
+  const { data: book, isLoading: isLoadingBook } = useQuery({
     queryKey: ["book", bookId],
     queryFn: async () => {
       const response = await fetch(`https://openlibrary.org/works/${bookId}.json`);
@@ -32,12 +42,12 @@ const BookPage = () => {
       // Fetch author details for each author
       if (data.authors) {
         const authorPromises = data.authors.map(async (authorRef: { author: { key: string } }) => {
-          const authorKey = authorRef.author.key.split('/').pop();
-          const authorResponse = await fetch(`https://openlibrary.org${authorRef.author.key}.json`);
+          const authorKey = authorRef.author.key;
+          const authorResponse = await fetch(`https://openlibrary.org${authorKey}.json`);
           if (!authorResponse.ok) return null;
           const authorData = await authorResponse.json();
           return {
-            key: authorRef.author.key,
+            key: authorKey,
             name: authorData.name
           };
         });
@@ -50,7 +60,25 @@ const BookPage = () => {
     },
   });
 
-  if (isLoading) {
+  const { data: reviews = [], isLoading: isLoadingReviews } = useQuery({
+    queryKey: ["reviews", bookId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reviews")
+        .select("*")
+        .eq("book_id", bookId)
+        .order("created_at", { ascending: false });
+      
+      if (error) throw error;
+      return data as Review[];
+    },
+  });
+
+  const handleReviewSubmitted = () => {
+    queryClient.invalidateQueries({ queryKey: ["reviews", bookId] });
+  };
+
+  if (isLoadingBook) {
     return (
       <div className="container mx-auto p-6 animate-pulse">
         <div className="max-w-4xl mx-auto">
@@ -153,6 +181,21 @@ const BookPage = () => {
                   ))}
                 </div>
               </div>
+            )}
+          </div>
+        </div>
+
+        <div className="mt-12">
+          <h2 className="text-2xl font-bold mb-6">Reviews</h2>
+          <div className="space-y-8">
+            <ReviewForm bookId={bookId!} onReviewSubmitted={handleReviewSubmitted} />
+            {isLoadingReviews ? (
+              <div className="animate-pulse space-y-4">
+                <div className="h-4 bg-muted rounded w-3/4" />
+                <div className="h-4 bg-muted rounded w-1/2" />
+              </div>
+            ) : (
+              <ReviewList reviews={reviews} />
             )}
           </div>
         </div>
