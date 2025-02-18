@@ -1,10 +1,10 @@
-
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import ReviewForm from "@/components/ReviewForm";
 import ReviewList from "@/components/ReviewList";
 import { supabase } from "@/integrations/supabase/client";
+import { Star } from "lucide-react";
 
 interface BookDetails {
   title: string;
@@ -74,8 +74,26 @@ const BookPage = () => {
     },
   });
 
+  const { data: averageRating } = useQuery({
+    queryKey: ["bookRating", bookId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("reviews")
+        .select("rating")
+        .eq("book_id", bookId);
+      
+      if (error) throw error;
+      
+      if (!data || data.length === 0) return 0;
+      
+      const avgRating = data.reduce((sum, review) => sum + review.rating, 0) / data.length;
+      return Math.round(avgRating * 10) / 10; // Round to 1 decimal
+    },
+  });
+
   const handleReviewSubmitted = () => {
     queryClient.invalidateQueries({ queryKey: ["reviews", bookId] });
+    queryClient.invalidateQueries({ queryKey: ["bookRating", bookId] });
   };
 
   if (isLoadingBook) {
@@ -147,6 +165,15 @@ const BookPage = () => {
                     </Link>
                   </div>
                 ))}
+              </div>
+              <div className="flex items-center gap-2 mt-4">
+                <Star className="w-6 h-6 fill-primary text-primary" />
+                <span className="text-lg font-semibold">
+                  {averageRating ? `${averageRating} / 5` : "No ratings yet"}
+                </span>
+                <span className="text-muted-foreground">
+                  ({reviews.length} {reviews.length === 1 ? "review" : "reviews"})
+                </span>
               </div>
             </div>
 
