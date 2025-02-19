@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface ReviewFormProps {
   bookId: string;
@@ -33,6 +34,44 @@ const ReviewForm = ({ bookId, onReviewSubmitted }: ReviewFormProps) => {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  const { data: existingReview, isLoading: isCheckingExistingReview } = useQuery({
+    queryKey: ["userReview", bookId, user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from("reviews")
+        .select()
+        .eq("book_id", bookId)
+        .eq("user_id", user.id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
+
+  if (!user) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-muted-foreground mb-2">Sign in to leave a review</p>
+        <Button onClick={() => navigate("/auth")}>Sign In</Button>
+      </div>
+    );
+  }
+
+  if (isCheckingExistingReview) {
+    return <div>Loading...</div>;
+  }
+
+  if (existingReview) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-muted-foreground">You have already reviewed this book</p>
+      </div>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,32 +111,15 @@ const ReviewForm = ({ bookId, onReviewSubmitted }: ReviewFormProps) => {
       setText("");
       onReviewSubmitted();
     } catch (error: any) {
-      if (error.code === '23505') {
-        toast({
-          title: "Error",
-          description: "You have already reviewed this book",
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to submit review. Please try again.",
-          variant: "destructive",
-        });
-      }
+      toast({
+        title: "Error",
+        description: "Failed to submit review. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
-
-  if (!user) {
-    return (
-      <div className="text-center py-4">
-        <p className="text-muted-foreground mb-2">Sign in to leave a review</p>
-        <Button onClick={() => navigate("/auth")}>Sign In</Button>
-      </div>
-    );
-  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">

@@ -2,6 +2,8 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button"; // Add this import
+import { supabase } from "@/integrations/supabase/client"; // Add this import
 import SearchBar from "@/components/SearchBar";
 import BookGrid from "@/components/BookGrid";
 
@@ -29,11 +31,25 @@ const searchBooks = async (query: string): Promise<Book[]> => {
 const Index = () => {
   const location = useLocation();
   const [searchQuery, setSearchQuery] = useState(() => {
-    // Initialize from URL search params
     const params = new URLSearchParams(location.search);
     return params.get("q") || "";
   });
   const navigate = useNavigate();
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const { data: books = [], isLoading } = useQuery({
     queryKey: ["books", searchQuery],
@@ -41,7 +57,6 @@ const Index = () => {
     enabled: !!searchQuery,
   });
 
-  // Update URL when search query changes
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (searchQuery) {
@@ -63,6 +78,16 @@ const Index = () => {
 
   return (
     <div className="min-h-screen w-full px-4 py-8 space-y-8">
+      <div className="flex justify-end px-4">
+        {user ? (
+          <Button variant="outline" onClick={() => supabase.auth.signOut()}>
+            Sign Out
+          </Button>
+        ) : (
+          <Button onClick={() => navigate("/auth")}>Sign In</Button>
+        )}
+      </div>
+
       <div className="max-w-2xl mx-auto text-center space-y-4 mb-12">
         <h1 className="text-4xl font-bold tracking-tight">Book Haven Search</h1>
         <p className="text-lg text-muted-foreground">
