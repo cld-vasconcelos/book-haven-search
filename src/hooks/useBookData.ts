@@ -51,7 +51,7 @@ export const useBookData = (bookId: string) => {
         .from("reviews")
         .select(`
           *,
-          profiles:user_id (
+          profiles (
             username
           )
         `)
