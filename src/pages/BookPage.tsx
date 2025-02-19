@@ -1,95 +1,26 @@
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { useParams, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import ReviewForm from "@/components/ReviewForm";
 import ReviewList from "@/components/ReviewList";
-import { supabase } from "@/integrations/supabase/client";
-import { Star } from "lucide-react";
-
-interface BookDetails {
-  title: string;
-  authors?: Array<{
-    key: string;
-    name: string;
-  }>;
-  covers?: number[];
-  first_publish_date?: string;
-  description?: {
-    value: string;
-  };
-  subjects?: string[];
-}
-
-interface Review {
-  id: string;
-  rating: number;
-  text: string | null;
-  created_at: string;
-}
+import BookCover from "@/components/BookCover";
+import BookHeader from "@/components/BookHeader";
+import BookMetadata from "@/components/BookMetadata";
+import { useBookData } from "@/hooks/useBookData";
 
 const BookPage = () => {
   const { bookId } = useParams();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: book, isLoading: isLoadingBook } = useQuery({
-    queryKey: ["book", bookId],
-    queryFn: async () => {
-      const response = await fetch(`https://openlibrary.org/works/${bookId}.json`);
-      if (!response.ok) throw new Error("Failed to fetch book details");
-      const data = await response.json();
-      
-      // Fetch author details for each author
-      if (data.authors) {
-        const authorPromises = data.authors.map(async (authorRef: { author: { key: string } }) => {
-          const authorKey = authorRef.author.key;
-          const authorResponse = await fetch(`https://openlibrary.org${authorKey}.json`);
-          if (!authorResponse.ok) return null;
-          const authorData = await authorResponse.json();
-          return {
-            key: authorKey,
-            name: authorData.name
-          };
-        });
-        
-        const authors = await Promise.all(authorPromises);
-        data.authors = authors.filter(author => author !== null);
-      }
-      
-      return data as BookDetails;
-    },
-  });
-
-  const { data: reviews = [], isLoading: isLoadingReviews } = useQuery({
-    queryKey: ["reviews", bookId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("reviews")
-        .select("*")
-        .eq("book_id", bookId)
-        .order("created_at", { ascending: false });
-      
-      if (error) throw error;
-      return data as Review[];
-    },
-  });
-
-  const { data: averageRating } = useQuery({
-    queryKey: ["bookRating", bookId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("reviews")
-        .select("rating")
-        .eq("book_id", bookId);
-      
-      if (error) throw error;
-      
-      if (!data || data.length === 0) return 0;
-      
-      const avgRating = data.reduce((sum, review) => sum + review.rating, 0) / data.length;
-      return Math.round(avgRating * 10) / 10; // Round to 1 decimal
-    },
-  });
+  const {
+    book,
+    reviews,
+    averageRating,
+    isLoadingBook,
+    isLoadingReviews,
+  } = useBookData(bookId!);
 
   const handleReviewSubmitted = () => {
     queryClient.invalidateQueries({ queryKey: ["reviews", bookId] });
@@ -117,11 +48,6 @@ const BookPage = () => {
 
   if (!book) return null;
 
-  const getAuthorId = (authorKey: string) => {
-    if (!authorKey) return '';
-    return authorKey.includes('/') ? authorKey.split('/').pop() : authorKey;
-  };
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -137,78 +63,24 @@ const BookPage = () => {
         </button>
 
         <div className="grid md:grid-cols-2 gap-8">
-          <div className="aspect-[2/3] relative rounded-lg overflow-hidden">
-            {book.covers?.[0] ? (
-              <img
-                src={`https://covers.openlibrary.org/b/id/${book.covers[0]}-L.jpg`}
-                alt={book.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full bg-muted flex items-center justify-center">
-                <span className="text-muted-foreground">No cover available</span>
-              </div>
-            )}
-          </div>
+          <BookCover
+            coverUrl={book.covers?.[0] ? `https://covers.openlibrary.org/b/id/${book.covers[0]}-L.jpg` : undefined}
+            title={book.title}
+          />
 
           <div className="space-y-6">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">{book.title}</h1>
-              <div className="space-y-1">
-                {book.authors?.map((author) => (
-                  <div key={author.key}>
-                    <Link
-                      to={`/author/${getAuthorId(author.key)}`}
-                      className="text-lg text-primary hover:underline"
-                    >
-                      {author.name}
-                    </Link>
-                  </div>
-                ))}
-              </div>
-              <div className="flex items-center gap-2 mt-4">
-                <Star className="w-6 h-6 fill-primary text-primary" />
-                <span className="text-lg font-semibold">
-                  {averageRating ? `${averageRating} / 5` : "No ratings yet"}
-                </span>
-                <span className="text-muted-foreground">
-                  ({reviews.length} {reviews.length === 1 ? "review" : "reviews"})
-                </span>
-              </div>
-            </div>
+            <BookHeader
+              title={book.title}
+              authors={book.authors}
+              averageRating={averageRating}
+              reviewCount={reviews.length}
+            />
 
-            {book.first_publish_date && (
-              <p className="text-muted-foreground">
-                First published: {book.first_publish_date}
-              </p>
-            )}
-
-            {book.description && (
-              <div>
-                <h2 className="text-xl font-semibold mb-2">About this book</h2>
-                <p className="text-muted-foreground leading-relaxed">
-                  {typeof book.description === 'string'
-                    ? book.description
-                    : book.description.value}
-                </p>
-              </div>
-            )}
-
-            {book.subjects && (
-              <div>
-                <h2 className="text-xl font-semibold mb-2">Subjects</h2>
-                <div className="flex flex-wrap gap-2">
-                  {book.subjects.slice(0, 10).map((subject) => (
-                    <span
-                      key={subject}
-                      className="px-3 py-1 bg-muted rounded-full text-sm text-muted-foreground"
-                    >
-                      {subject}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+            <BookMetadata
+              publishDate={book.first_publish_date}
+              description={book.description}
+              subjects={book.subjects}
+            />
           </div>
         </div>
 
