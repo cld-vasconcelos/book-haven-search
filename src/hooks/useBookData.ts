@@ -49,7 +49,12 @@ export const useBookData = (bookId: string) => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("reviews")
-        .select("*")
+        .select(`
+          *,
+          profiles:user_id (
+            username
+          )
+        `)
         .eq("book_id", bookId)
         .order("created_at", { ascending: false });
       

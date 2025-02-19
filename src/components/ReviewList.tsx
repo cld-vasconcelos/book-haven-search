@@ -7,6 +7,9 @@ interface Review {
   rating: number;
   text: string | null;
   created_at: string;
+  profiles?: {
+    username: string;
+  };
 }
 
 interface ReviewListProps {
@@ -42,6 +45,11 @@ const ReviewList = ({ reviews }: ReviewListProps) => {
             <span className="text-sm text-muted-foreground">
               {format(new Date(review.created_at), "MMM d, yyyy")}
             </span>
+            {review.profiles?.username && (
+              <span className="text-sm font-medium">
+                by {review.profiles.username}
+              </span>
+            )}
           </div>
           {review.text && <p className="text-sm text-foreground">{review.text}</p>}
         </div>

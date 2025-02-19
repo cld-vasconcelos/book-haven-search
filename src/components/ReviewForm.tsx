@@ -1,5 +1,6 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Star } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -15,10 +16,32 @@ const ReviewForm = ({ bookId, onReviewSubmitted }: ReviewFormProps) => {
   const [rating, setRating] = useState<number>(0);
   const [text, setText] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    getUser();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
+
     if (rating === 0) {
       toast({
         title: "Rating required",
@@ -32,7 +55,12 @@ const ReviewForm = ({ bookId, onReviewSubmitted }: ReviewFormProps) => {
     try {
       const { error } = await supabase
         .from("reviews")
-        .insert([{ book_id: bookId, rating, text: text.trim() || null }]);
+        .insert([{ 
+          book_id: bookId, 
+          rating, 
+          text: text.trim() || null,
+          user_id: user.id
+        }]);
 
       if (error) throw error;
 
@@ -40,20 +68,36 @@ const ReviewForm = ({ bookId, onReviewSubmitted }: ReviewFormProps) => {
         title: "Review submitted",
         description: "Thank you for your review!",
       });
-      // Clear form after successful submission
       setRating(0);
       setText("");
       onReviewSubmitted();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to submit review. Please try again.",
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      if (error.code === '23505') {
+        toast({
+          title: "Error",
+          description: "You have already reviewed this book",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to submit review. Please try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (!user) {
+    return (
+      <div className="text-center py-4">
+        <p className="text-muted-foreground mb-2">Sign in to leave a review</p>
+        <Button onClick={() => navigate("/auth")}>Sign In</Button>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
