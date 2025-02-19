@@ -38,19 +38,23 @@ const BookGrid = ({ books, onBookSelect, isLoading }: BookGridProps) => {
       className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
     >
       <AnimatePresence>
-        {books.map((book) => (
-          <BookCard
-            key={book.key}
-            title={book.title}
-            author={book.author_name?.[0] ?? "Unknown Author"}
-            coverUrl={
-              book.cover_i
-                ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
-                : undefined
-            }
-            onClick={() => onBookSelect(book)}
-          />
-        ))}
+        {books.map((book) => {
+          const bookId = book.key.split("/").pop();
+          return (
+            <BookCard
+              key={book.key}
+              title={book.title}
+              author={book.author_name?.[0] ?? "Unknown Author"}
+              coverUrl={
+                book.cover_i
+                  ? `https://covers.openlibrary.org/b/id/${book.cover_i}-M.jpg`
+                  : undefined
+              }
+              onClick={() => onBookSelect(book)}
+              bookId={bookId!}
+            />
+          );
+        })}
       </AnimatePresence>
     </motion.div>
   );
