@@ -1,19 +1,12 @@
-
-import { Search, X } from "lucide-react";
-import { useState, useEffect } from "react";
+import React, { useState } from 'react';
+import { Search } from 'lucide-react';
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
-  isLoading?: boolean;
-  initialValue?: string;
 }
 
-const SearchBar = ({ onSearch, isLoading, initialValue = "" }: SearchBarProps) => {
-  const [query, setQuery] = useState(initialValue);
-
-  useEffect(() => {
-    setQuery(initialValue);
-  }, [initialValue]);
+export const SearchBar: React.FC<SearchBarProps> = ({ onSearch }) => {
+  const [query, setQuery] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,38 +15,24 @@ const SearchBar = ({ onSearch, isLoading, initialValue = "" }: SearchBarProps) =
     }
   };
 
-  const handleClear = () => {
-    setQuery("");
-    onSearch("");
-  };
-
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-2xl mx-auto">
-      <div className="relative group">
+    <form onSubmit={handleSubmit} className="w-full max-w-3xl mx-auto">
+      <div className="relative">
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search for books..."
-          className="w-full px-4 py-3 pl-12 pr-12 rounded-full border border-border bg-card/50 backdrop-blur-sm 
-                   transition-all duration-300 outline-none focus:ring-2 focus:ring-primary/20
-                   placeholder:text-muted-foreground text-base"
-          disabled={isLoading}
+          className="w-full px-4 py-3 pl-12 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent placeholder-gray-500 dark:placeholder-gray-400"
         />
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
-        {query && (
-          <button
-            type="button"
-            onClick={handleClear}
-            className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted transition-colors"
-            disabled={isLoading}
-          >
-            <X className="w-4 h-4 text-muted-foreground hover:text-foreground transition-colors" />
-          </button>
-        )}
+        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" size={20} />
+        <button
+          type="submit"
+          className="absolute right-2 top-1/2 transform -translate-y-1/2 px-4 py-1.5 bg-blue-600 dark:bg-blue-500 text-white rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
+        >
+          Search
+        </button>
       </div>
     </form>
   );
 };
-
-export default SearchBar;

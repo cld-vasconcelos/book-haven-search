@@ -1,106 +1,134 @@
+import React, { useEffect, useState } from 'react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { getBookById } from '../services/api';
+import { Book } from '../types';
+import { ArrowLeft, Book as BookIcon } from 'lucide-react';
 
-import { useParams, useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
-import ReviewForm from "@/components/ReviewForm";
-import ReviewList from "@/components/ReviewList";
-import BookCover from "@/components/BookCover";
-import BookHeader from "@/components/BookHeader";
-import BookMetadata from "@/components/BookMetadata";
-import { useBookData } from "@/hooks/useBookData";
-
-const BookPage = () => {
-  const { bookId } = useParams();
+export const BookPage: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
+  const [book, setBook] = useState<Book | null>(null);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
 
-  const {
-    book,
-    reviews,
-    averageRating,
-    isLoadingBook,
-    isLoadingReviews,
-  } = useBookData(bookId!);
+  useEffect(() => {
+    const fetchBook = async () => {
+      if (id) {
+        const result = await getBookById(id);
+        setBook(result);
+        setLoading(false);
+      }
+    };
+    fetchBook();
+  }, [id]);
 
-  const handleReviewSubmitted = () => {
-    queryClient.invalidateQueries({ queryKey: ["reviews", bookId] });
-    queryClient.invalidateQueries({ queryKey: ["bookRating", bookId] });
-  };
-
-  if (isLoadingBook) {
+  if (loading) {
     return (
-      <div className="container mx-auto p-6 animate-pulse">
-        <div className="max-w-4xl mx-auto">
-          <div className="skeleton h-8 w-3/4 mb-4" />
-          <div className="skeleton h-6 w-1/2 mb-8" />
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="aspect-[2/3] skeleton rounded-lg" />
-            <div className="space-y-4">
-              <div className="skeleton h-4 w-full" />
-              <div className="skeleton h-4 w-3/4" />
-              <div className="skeleton h-4 w-5/6" />
-            </div>
-          </div>
-        </div>
+      <div className="flex justify-center items-center min-h-screen bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 dark:border-blue-400"></div>
       </div>
     );
   }
 
-  if (!book) return null;
+  if (!book) {
+    return (
+      <div className="text-center py-12 bg-gray-50 dark:bg-gray-900">
+        <p className="text-gray-600 dark:text-gray-400">Book not found</p>
+        <button
+          onClick={() => navigate('/')}
+          className="mt-4 text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          Return to search
+        </button>
+      </div>
+    );
+  }
+
+  const { volumeInfo } = book;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="container mx-auto p-6"
-    >
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8 transition-colors">
+      <div className="container mx-auto px-4">
         <button
           onClick={() => navigate(-1)}
-          className="mb-6 text-muted-foreground hover:text-foreground transition-colors"
+          className="flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 mb-8"
         >
-          ← Back
+          <ArrowLeft size={20} className="mr-2" />
+          Back
         </button>
 
-        <div className="grid md:grid-cols-2 gap-8">
-          <BookCover
-            coverUrl={book.covers?.[0] ? `https://covers.openlibrary.org/b/id/${book.covers[0]}-L.jpg` : undefined}
-            title={book.title}
-          />
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+          <div className="md:flex">
+            <div className="md:w-1/3 p-8">
+              {volumeInfo.imageLinks?.thumbnail ? (
+                <img
+                  src={volumeInfo.imageLinks.thumbnail.replace('http:', 'https:')}
+                  alt={volumeInfo.title}
+                  className="w-full rounded-lg shadow-md"
+                />
+              ) : (
+                <div className="w-full aspect-[2/3] bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                  <BookIcon size={64} className="text-gray-400 dark:text-gray-500" />
+                </div>
+              )}
+            </div>
 
-          <div className="space-y-6">
-            <BookHeader
-              title={book.title}
-              authors={book.authors}
-              averageRating={averageRating}
-              reviewCount={reviews.length}
-            />
+            <div className="md:w-2/3 p-8">
+              <h1 className="text-3xl font-bold mb-4 text-gray-900 dark:text-white">{volumeInfo.title}</h1>
+              
+              {volumeInfo.authors && (
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Authors:</h2>
+                  <div className="flex flex-wrap gap-2">
+                    {volumeInfo.authors.map((author) => (
+                      <Link
+                        key={author}
+                        to={`/author/${encodeURIComponent(author)}`}
+                        className="inline-block bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 px-3 py-1 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                      >
+                        {author}
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-            <BookMetadata
-              publishDate={book.first_publish_date}
-              description={book.description}
-              subjects={book.subjects}
-            />
-          </div>
-        </div>
+              {volumeInfo.description && (
+                <div className="mb-4">
+                  <h2 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Description:</h2>
+                  <p className="text-gray-700 dark:text-gray-300">{volumeInfo.description}</p>
+                </div>
+              )}
 
-        <div className="mt-12">
-          <h2 className="text-2xl font-bold mb-6">Reviews</h2>
-          <div className="space-y-8">
-            <ReviewForm bookId={bookId!} onReviewSubmitted={handleReviewSubmitted} />
-            {isLoadingReviews ? (
-              <div className="animate-pulse space-y-4">
-                <div className="h-4 bg-muted rounded w-3/4" />
-                <div className="h-4 bg-muted rounded w-1/2" />
+              <div className="grid grid-cols-2 gap-4 mt-6">
+                {volumeInfo.publishedDate && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Published Date</h3>
+                    <p className="text-gray-700 dark:text-gray-300">{volumeInfo.publishedDate}</p>
+                  </div>
+                )}
+                {volumeInfo.publisher && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Publisher</h3>
+                    <p className="text-gray-700 dark:text-gray-300">{volumeInfo.publisher}</p>
+                  </div>
+                )}
+                {volumeInfo.pageCount && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Pages</h3>
+                    <p className="text-gray-700 dark:text-gray-300">{volumeInfo.pageCount}</p>
+                  </div>
+                )}
+                {volumeInfo.categories && (
+                  <div>
+                    <h3 className="font-semibold text-gray-900 dark:text-white">Categories</h3>
+                    <p className="text-gray-700 dark:text-gray-300">{volumeInfo.categories.join(', ')}</p>
+                  </div>
+                )}
               </div>
-            ) : (
-              <ReviewList reviews={reviews} />
-            )}
+            </div>
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
-
-export default BookPage;
